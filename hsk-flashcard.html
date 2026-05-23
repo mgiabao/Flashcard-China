@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HSK Flashcard — Học Tiếng Trung</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --red: #c0392b;
+    --red-light: #fadbd8;
+    --red-mid: #e74c3c;
+    --gold: #d4a017;
+    --gold-light: #fef9e7;
+    --ink: #1a1a2e;
+    --ink-muted: #4a4a6a;
+    --ink-faint: #8888aa;
+    --surface: #faf9f6;
+    --surface-card: #ffffff;
+    --border: rgba(0,0,0,0.08);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.07);
+    --shadow-md: 0 8px 32px rgba(0,0,0,0.12);
+    --shadow-lg: 0 20px 60px rgba(0,0,0,0.16);
+    --radius: 16px;
+    --radius-sm: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Be Vietnam Pro', sans-serif;
+    background: var(--surface);
+    color: var(--ink);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ─── DECORATIVE BG ─── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 10% 10%, rgba(192,57,43,0.06) 0%, transparent 70%),
+      radial-gradient(ellipse 50% 50% at 90% 90%, rgba(212,160,23,0.07) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ─── LAYOUT ─── */
+  #app { position: relative; z-index: 1; max-width: 860px; margin: 0 auto; padding: 24px 16px 80px; }
+
+  /* ─── HEADER ─── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 32px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .logo-icon {
+    width: 40px; height: 40px;
+    background: var(--red);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Noto Serif SC', serif;
+    color: white; font-size: 20px; font-weight: 700;
+  }
+  .logo-text { font-size: 18px; font-weight: 700; color: var(--ink); letter-spacing: -0.3px; }
+  .logo-sub { font-size: 11px; color: var(--ink-faint); font-weight: 400; }
+  .header-actions { display: flex; gap: 8px; }
+
+  /* ─── BUTTONS ─── */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 9px 18px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: white;
+    font-family: 'Be Vietnam Pro', sans-serif;
+    font-size: 13px; font-weight: 500;
+    cursor: pointer;
+    transition: all 0.18s;
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .btn:hover { background: #f5f5f5; transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+  .btn-red { background: var(--red); color: white; border-color: transparent; }
+  .btn-red:hover { background: var(--red-mid); }
+  .btn-gold { background: var(--gold); color: white; border-color: transparent; }
+  .btn-gold:hover { background: #c8950e; }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  /* ─── UPLOAD ZONE ─── */
+  #upload-zone {
+    border: 2px dashed rgba(192,57,43,0.3);
+    border-radius: var(--radius);
+    padding: 48px 24px;
+    text-align: center;
+    background: white;
+    transition: all 0.2s;
+    cursor: pointer;
+  }
+  #upload-zone.drag-over { border-color: var(--red); background: var(--red-light); }
+  .upload-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.4; }
+  .upload-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+  .upload-desc { font-size: 13px; color: var(--ink-faint); line-height: 1.7; margin-bottom: 24px; }
+  #file-input { display: none; }
+
+  /* ─── HSK LEVEL TABS ─── */
+  .level-tabs {
+    display: flex; gap: 6px; flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .level-tab {
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: white;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: var(--ink-muted);
+    position: relative;
+  }
+  .level-tab:hover { border-color: var(--red); color: var(--red); }
+  .level-tab.active { background: var(--red); color: white; border-color: var(--red); }
+  .level-badge {
+    position: absolute; top: -6px; right: -4px;
+    background: var(--gold); color: white;
+    border-radius: 10px; font-size: 9px; font-weight: 700;
+    padding: 1px 5px;
+    display: none;
+  }
+  .level-tab.has-progress .level-badge { display: block; }
+
+  /* ─── STATS ROW ─── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    text-align: center;
+  }
+  .stat-val { font-size: 22px; font-weight: 700; color: var(--ink); line-height: 1; }
+  .stat-label { font-size: 10px; color: var(--ink-faint); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-card.red .stat-val { color: var(--red); }
+  .stat-card.gold .stat-val { color: var(--gold); }
+  .stat-card.green .stat-val { color: #27ae60; }
+
+  /* ─── PROGRESS BAR ─── */
+  .progress-wrap { margin-bottom: 24px; }
+  .progress-info { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-faint); margin-bottom: 6px; }
+  .progress-bar { height: 6px; background: #eee; border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--red), var(--gold)); border-radius: 3px; transition: width 0.4s ease; }
+
+  /* ─── CONTROLS ─── */
+  .controls {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px; flex-wrap: wrap; gap: 10px;
+  }
+  .controls-left { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .mode-select {
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    font-family: 'Be Vietnam Pro', sans-serif;
+    font-size: 12px; font-weight: 500;
+    background: white; color: var(--ink);
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 28px;
+  }
+
+  /* ─── FLASHCARD ─── */
+  .card-area {
+    perspective: 1200px;
+    margin-bottom: 20px;
+    user-select: none;
+  }
+  .card-wrapper {
+    position: relative;
+    width: 100%;
+    padding-top: min(58%, 400px);
+  }
+  .card-inner {
+    position: absolute;
+    inset: 0;
+    transform-style: preserve-3d;
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+  }
+  .card-inner.flipped { transform: rotateY(180deg); }
+  .card-face {
+    position: absolute; inset: 0;
+    background: white;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-md);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    overflow: hidden;
+  }
+  .card-face::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--red), var(--gold));
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+  .card-back { transform: rotateY(180deg); background: #fffbf5; }
+  .card-hint {
+    position: absolute; bottom: 14px;
+    font-size: 11px; color: var(--ink-faint);
+    display: flex; align-items: center; gap: 4px;
+  }
+  .card-num {
+    position: absolute; top: 16px; right: 18px;
+    font-size: 11px; color: var(--ink-faint);
+  }
+  .card-hsk-label {
+    position: absolute; top: 16px; left: 18px;
+    font-size: 10px; font-weight: 600;
+    color: white; background: var(--red);
+    padding: 2px 8px; border-radius: 10px;
+    letter-spacing: 0.5px;
+  }
+
+  /* ─── CHINESE CHARACTER ─── */
+  .hanzi {
+    font-family: 'Noto Serif SC', serif;
+    font-size: clamp(56px, 12vw, 100px);
+    color: var(--red);
+    line-height: 1.1;
+    margin-bottom: 8px;
+    text-shadow: 2px 2px 0px rgba(192,57,43,0.1);
+  }
+  .pinyin-front {
+    font-size: 18px;
+    color: var(--ink-muted);
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+    font-weight: 300;
+  }
+  .meaning-label {
+    font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 1px;
+    color: var(--ink-faint); margin-bottom: 6px;
+  }
+  .meaning-text {
+    font-size: 22px; font-weight: 600; color: var(--ink);
+    text-align: center; line-height: 1.4;
+  }
+  .example-block {
+    margin-top: 20px;
+    background: #f9f7ff;
+    border-radius: var(--radius-sm);
+    padding: 14px 18px;
+    width: 100%; max-width: 440px;
+  }
+  .example-hanzi {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 18px; color: var(--ink);
+    margin-bottom: 4px;
+    line-height: 1.5;
+  }
+  .example-hanzi span { color: var(--red); }
+  .example-pinyin { font-size: 12px; color: var(--ink-faint); margin-bottom: 4px; }
+  .example-meaning { font-size: 13px; color: var(--ink-muted); font-style: italic; }
+
+  /* ─── RATING BUTTONS ─── */
+  .rating-area {
+    display: flex; gap: 10px;
+    justify-content: center; flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .rating-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 10px 20px; min-width: 80px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: white; cursor: pointer;
+    transition: all 0.15s; font-family: 'Be Vietnam Pro', sans-serif;
+    font-size: 11px; color: var(--ink-muted);
+    font-weight: 500;
+  }
+  .rating-btn .emoji { font-size: 20px; }
+  .rating-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
+  .rating-btn.again { border-color: #e74c3c; }
+  .rating-btn.again:hover { background: #ffeaea; }
+  .rating-btn.hard { border-color: #e67e22; }
+  .rating-btn.hard:hover { background: #fff3e3; }
+  .rating-btn.good { border-color: #27ae60; }
+  .rating-btn.good:hover { background: #e9faef; }
+  .rating-btn.easy { border-color: #2980b9; }
+  .rating-btn.easy:hover { background: #e8f4fd; }
+
+  /* ─── NAV ─── */
+  .nav-row { display: flex; align-items: center; justify-content: center; gap: 16px; }
+  .nav-row .card-counter { font-size: 13px; color: var(--ink-faint); }
+
+  /* ─── SESSION COMPLETE ─── */
+  #session-complete {
+    text-align: center; padding: 60px 24px;
+    background: white; border-radius: var(--radius);
+    border: 1px solid var(--border);
+  }
+  .complete-icon { font-size: 64px; margin-bottom: 16px; }
+  .complete-title { font-size: 26px; font-weight: 700; margin-bottom: 8px; }
+  .complete-sub { color: var(--ink-faint); margin-bottom: 32px; font-size: 14px; }
+  .complete-stats { display: flex; justify-content: center; gap: 32px; margin-bottom: 32px; }
+  .cs { text-align: center; }
+  .cs-num { font-size: 32px; font-weight: 700; }
+  .cs-label { font-size: 12px; color: var(--ink-faint); }
+
+  /* ─── SEARCH ─── */
+  .search-row { display: flex; gap: 8px; margin-bottom: 16px; }
+  .search-input {
+    flex: 1; padding: 9px 14px;
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-family: 'Be Vietnam Pro', sans-serif; font-size: 13px;
+    background: white; color: var(--ink);
+    outline: none; transition: border 0.15s;
+  }
+  .search-input:focus { border-color: var(--red); }
+
+  /* ─── WORD LIST (browse mode) ─── */
+  .word-list { display: flex; flex-direction: column; gap: 8px; }
+  .word-row {
+    display: grid;
+    grid-template-columns: 60px 1fr 1fr 1fr;
+    gap: 12px; align-items: center;
+    padding: 12px 16px;
+    background: white; border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    font-size: 13px;
+    transition: box-shadow 0.15s;
+  }
+  .word-row:hover { box-shadow: var(--shadow-sm); }
+  .wr-hanzi { font-family: 'Noto Serif SC', serif; font-size: 22px; color: var(--red); }
+  .wr-pinyin { color: var(--ink-muted); font-size: 12px; }
+  .wr-mean { color: var(--ink); }
+  .wr-status { text-align: right; }
+  .status-dot {
+    display: inline-block; width: 8px; height: 8px;
+    border-radius: 50%; background: #ddd;
+    margin-right: 4px;
+  }
+  .status-dot.known { background: #27ae60; }
+  .status-dot.learning { background: #e67e22; }
+  .status-dot.new { background: #bbb; }
+  .list-header {
+    display: grid; grid-template-columns: 60px 1fr 1fr 1fr;
+    gap: 12px; padding: 8px 16px;
+    font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.7px;
+    color: var(--ink-faint);
+  }
+
+  /* ─── LOADING ─── */
+  #loading {
+    display: none; text-align: center; padding: 60px;
+  }
+  .spinner {
+    width: 40px; height: 40px;
+    border: 3px solid #eee;
+    border-top-color: var(--red);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ─── HIDE/SHOW ─── */
+  .hidden { display: none !important; }
+
+  /* ─── AUDIO BTN ─── */
+  .audio-btn {
+    background: none; border: none; cursor: pointer;
+    font-size: 18px; padding: 4px; color: var(--ink-faint);
+    transition: color 0.15s;
+  }
+  .audio-btn:hover { color: var(--red); }
+
+  /* ─── TIPS ─── */
+  .tips-bar {
+    background: var(--gold-light);
+    border: 1px solid rgba(212,160,23,0.2);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    font-size: 12px; color: var(--ink-muted);
+    margin-bottom: 16px;
+    display: flex; align-items: flex-start; gap: 8px;
+  }
+  .tips-icon { font-size: 16px; flex-shrink: 0; }
+
+  @media (max-width: 560px) {
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+    .word-row { grid-template-columns: 50px 1fr 1fr; }
+    .word-row .wr-status { display: none; }
+    .list-header { grid-template-columns: 50px 1fr 1fr; }
+    .list-header .lh-status { display: none; }
+    .complete-stats { gap: 20px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="logo">
+      <div class="logo-icon">汉</div>
+      <div>
+        <div class="logo-text">HSK Flashcard</div>
+        <div class="logo-sub">Học Tiếng Trung Hiệu Quả</div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-sm" id="btn-reset-progress">🔄 Reset</button>
+      <button class="btn btn-sm btn-red" onclick="document.getElementById('file-input').click()">📂 Tải Excel</button>
+    </div>
+  </header>
+
+  <!-- UPLOAD STATE -->
+  <div id="upload-state">
+    <div id="upload-zone">
+      <div class="upload-icon">📚</div>
+      <div class="upload-title">Tải lên file Excel HSK của bạn</div>
+      <div class="upload-desc">
+        Kéo thả hoặc nhấn để chọn file Excel (.xlsx)<br>
+        File cần có <strong>6 sheet</strong>: HSK1 → HSK6<br>
+        Các cột: <code>STT | Từ mới | Phiên âm | Giải thích | Ví dụ (chữ hán) | Phiên âm | Dịch</code>
+      </div>
+      <button class="btn btn-red" onclick="document.getElementById('file-input').click()">
+        📂 Chọn File Excel
+      </button>
+    </div>
+    <input type="file" id="file-input" accept=".xlsx,.xls">
+
+    <div id="loading">
+      <div class="spinner"></div>
+      <div style="color: var(--ink-faint); font-size: 13px;">Đang đọc file Excel...</div>
+    </div>
+
+    <div style="margin-top: 32px; padding: 20px; background: white; border-radius: var(--radius); border: 1px solid var(--border);">
+      <div style="font-size: 13px; font-weight: 600; margin-bottom: 12px;">📖 Hướng dẫn học hiệu quả nhất (Spaced Repetition)</div>
+      <div style="font-size: 12px; color: var(--ink-muted); line-height: 1.8;">
+        <b>🔴 Lại (Again)</b> — Không nhớ → ôn ngay trong phiên này<br>
+        <b>🟠 Khó (Hard)</b> → ôn sớm hơn bình thường<br>
+        <b>🟢 Tốt (Good)</b> → ôn đúng lịch<br>
+        <b>🔵 Dễ (Easy)</b> → đẩy lịch ôn xa hơn<br><br>
+        Mỗi từ có khoảng cách ôn tập tăng dần theo thuật toán SM-2.<br>
+        Tiến độ lưu ngay trong trình duyệt, không cần tài khoản.
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN STATE -->
+  <div id="main-state" class="hidden">
+    <!-- Level tabs -->
+    <div class="level-tabs" id="level-tabs"></div>
+
+    <!-- View toggle -->
+    <div class="controls">
+      <div class="controls-left">
+        <select class="mode-select" id="mode-select">
+          <option value="flashcard">🃏 Flashcard</option>
+          <option value="browse">📋 Danh sách từ</option>
+        </select>
+        <select class="mode-select" id="order-select">
+          <option value="spaced">🧠 Spaced Repetition</option>
+          <option value="sequential">📖 Tuần tự</option>
+          <option value="random">🎲 Ngẫu nhiên</option>
+        </select>
+        <select class="mode-select" id="show-select">
+          <option value="all">Tất cả từ</option>
+          <option value="new">Từ mới</option>
+          <option value="learning">Đang học</option>
+          <option value="known">Đã thuộc</option>
+        </select>
+      </div>
+      <div style="font-size: 12px; color: var(--ink-faint);" id="word-count-label"></div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-val" id="stat-total">0</div>
+        <div class="stat-label">Tổng từ</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-val" id="stat-known">0</div>
+        <div class="stat-label">Đã thuộc</div>
+      </div>
+      <div class="stat-card gold">
+        <div class="stat-val" id="stat-learning">0</div>
+        <div class="stat-label">Đang học</div>
+      </div>
+      <div class="stat-card red">
+        <div class="stat-val" id="stat-new">0</div>
+        <div class="stat-label">Từ mới</div>
+      </div>
+    </div>
+
+    <!-- Progress -->
+    <div class="progress-wrap">
+      <div class="progress-info">
+        <span id="progress-text">Tiến độ học</span>
+        <span id="progress-pct">0%</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+    </div>
+
+    <!-- FLASHCARD VIEW -->
+    <div id="flashcard-view">
+      <div class="tips-bar" id="tips-bar">
+        <span class="tips-icon">💡</span>
+        <span>Nhấn vào thẻ để lật và xem nghĩa. Sau khi lật, đánh giá mức độ nhớ của bạn để hệ thống lên lịch ôn tập tối ưu.</span>
+      </div>
+
+      <!-- Card -->
+      <div class="card-area" id="card-area">
+        <div class="card-wrapper">
+          <div class="card-inner" id="card-inner">
+            <!-- FRONT -->
+            <div class="card-face" id="card-front">
+              <div class="card-hsk-label" id="front-hsk-label">HSK1</div>
+              <div class="card-num" id="front-num">1/10</div>
+              <div class="hanzi" id="front-hanzi">爱</div>
+              <div class="pinyin-front" id="front-pinyin">ài</div>
+              <div class="card-hint">
+                <span>👆 Nhấn để xem nghĩa</span>
+              </div>
+            </div>
+            <!-- BACK -->
+            <div class="card-face card-back" id="card-back">
+              <div class="card-num" id="back-num">1/10</div>
+              <div class="meaning-label">Nghĩa tiếng Việt</div>
+              <div class="meaning-text" id="back-meaning">yêu</div>
+              <div class="example-block" id="back-example">
+                <div class="example-hanzi" id="ex-hanzi">我<span>爱</span>你。</div>
+                <div class="example-pinyin" id="ex-pinyin">Wǒ ài nǐ.</div>
+                <div class="example-meaning" id="ex-meaning">Tôi yêu bạn.</div>
+              </div>
+              <div class="card-hint">
+                <span>🔁 Nhấn để lật lại</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rating buttons (hidden until flipped) -->
+      <div id="rating-area" class="hidden">
+        <div class="rating-area">
+          <button class="rating-btn again" data-rating="again">
+            <span class="emoji">😞</span>Lại
+          </button>
+          <button class="rating-btn hard" data-rating="hard">
+            <span class="emoji">😅</span>Khó
+          </button>
+          <button class="rating-btn good" data-rating="good">
+            <span class="emoji">😊</span>Tốt
+          </button>
+          <button class="rating-btn easy" data-rating="easy">
+            <span class="emoji">😁</span>Dễ
+          </button>
+        </div>
+      </div>
+
+      <!-- Nav -->
+      <div class="nav-row" id="nav-row">
+        <button class="btn btn-sm" id="btn-prev">← Trước</button>
+        <span class="card-counter" id="card-counter">1 / 10</span>
+        <button class="btn btn-sm" id="btn-next">Tiếp →</button>
+      </div>
+
+      <!-- Session Complete -->
+      <div id="session-complete" class="hidden">
+        <div class="complete-icon">🎉</div>
+        <div class="complete-title">Hoàn thành phiên học!</div>
+        <div class="complete-sub">Bạn đã ôn xong tất cả các thẻ trong phiên này.</div>
+        <div class="complete-stats">
+          <div class="cs"><div class="cs-num" id="cs-correct" style="color:#27ae60">0</div><div class="cs-label">Đúng</div></div>
+          <div class="cs"><div class="cs-num" id="cs-hard" style="color:#e67e22">0</div><div class="cs-label">Khó</div></div>
+          <div class="cs"><div class="cs-num" id="cs-again" style="color:#e74c3c">0</div><div class="cs-label">Cần ôn lại</div></div>
+        </div>
+        <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+          <button class="btn btn-red" id="btn-restart">🔄 Học lại</button>
+          <button class="btn" id="btn-review-hard">😅 Ôn từ khó</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- BROWSE VIEW -->
+    <div id="browse-view" class="hidden">
+      <div class="search-row">
+        <input type="text" class="search-input" id="search-input" placeholder="🔍  Tìm từ (hán, pinyin, nghĩa)...">
+        <button class="btn btn-sm" id="btn-clear-search">Xoá</button>
+      </div>
+      <div class="list-header">
+        <div>Chữ Hán</div>
+        <div>Phiên Âm</div>
+        <div>Nghĩa</div>
+        <div class="lh-status" style="text-align:right">Trạng thái</div>
+      </div>
+      <div class="word-list" id="word-list"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── SPACED REPETITION (SM-2 simplified) ───
+function sm2(card, quality) {
+  // quality: 0=again, 1=hard, 2=good, 3=easy
+  let { easiness=2.5, interval=1, repetitions=0, nextReview=Date.now() } = card.sr || {};
+  if (quality < 1) {
+    repetitions = 0; interval = 1;
+  } else {
+    if (repetitions === 0) interval = 1;
+    else if (repetitions === 1) interval = 6;
+    else interval = Math.round(interval * easiness);
+    repetitions++;
+    if (quality === 1) interval = Math.max(1, Math.round(interval * 0.6));
+    if (quality === 3) interval = Math.round(interval * 1.3);
+  }
+  easiness = Math.max(1.3, easiness + 0.1 - (3-quality)*(0.08+(3-quality)*0.02));
+  nextReview = Date.now() + interval * 86400000;
+  return { easiness, interval, repetitions, nextReview };
+}
+
+// ─── STATE ───
+let data = {}; // { "HSK1": [...words], ... }
+let progress = {}; // { wordKey: { sr, status } }
+let currentLevel = "HSK1";
+let currentQueue = [];
+let currentIdx = 0;
+let isFlipped = false;
+let sessionStats = { correct:0, hard:0, again:0 };
+let currentMode = "flashcard";
+
+const STORAGE_KEY = "hsk_flashcard_progress_v2";
+
+function saveProgress() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+}
+function loadProgress() {
+  try { progress = JSON.parse(localStorage.getItem(STORAGE_KEY)||"{}"); } catch(e) { progress = {}; }
+}
+
+function wordKey(level, word) {
+  return `${level}__${word}`;
+}
+
+// ─── DATA LOADING ───
+document.getElementById("file-input").addEventListener("change", e => {
+  const f = e.target.files[0]; if(!f) return;
+  loadExcel(f);
+  e.target.value = "";
+});
+
+const zone = document.getElementById("upload-zone");
+zone.addEventListener("dragover", e => { e.preventDefault(); zone.classList.add("drag-over"); });
+zone.addEventListener("dragleave", () => zone.classList.remove("drag-over"));
+zone.addEventListener("drop", e => {
+  e.preventDefault(); zone.classList.remove("drag-over");
+  const f = e.dataTransfer.files[0]; if(f) loadExcel(f);
+});
+zone.addEventListener("click", () => document.getElementById("file-input").click());
+
+function loadExcel(file) {
+  document.getElementById("loading").style.display = "block";
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type:"array" });
+      data = {};
+      wb.SheetNames.forEach((name, i) => {
+        const sheet = wb.Sheets[name];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header:1, defval:"" });
+        // Find header row (row with "Từ mới" or similar)
+        let startRow = 2;
+        for (let r = 0; r < Math.min(rows.length, 5); r++) {
+          const rowStr = rows[r].join(" ").toLowerCase();
+          if (rowStr.includes("từ mới") || rowStr.includes("tu moi") || rowStr.includes("phiên âm")) {
+            startRow = r + 1; break;
+          }
+        }
+        const levelKey = `HSK${i+1}`;
+        data[levelKey] = [];
+        for (let r = startRow; r < rows.length; r++) {
+          const row = rows[r];
+          const word = String(row[1]||"").trim();
+          if (!word) continue;
+          data[levelKey].push({
+            stt: row[0],
+            word: word,
+            pinyin: String(row[2]||"").trim(),
+            meaning: String(row[3]||"").trim(),
+            exHanzi: String(row[4]||"").trim(),
+            exPinyin: String(row[5]||"").trim(),
+            exMeaning: String(row[6]||"").trim(),
+          });
+        }
+      });
+      loadProgress();
+      document.getElementById("loading").style.display = "none";
+      initMain();
+    } catch(err) {
+      console.error(err);
+      document.getElementById("loading").style.display = "none";
+      alert("Lỗi đọc file! Kiểm tra lại định dạng Excel.\n" + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ─── INIT MAIN ───
+function initMain() {
+  document.getElementById("upload-state").classList.add("hidden");
+  document.getElementById("main-state").classList.remove("hidden");
+  buildLevelTabs();
+  selectLevel(Object.keys(data)[0] || "HSK1");
+}
+
+function buildLevelTabs() {
+  const container = document.getElementById("level-tabs");
+  container.innerHTML = "";
+  Object.keys(data).forEach(lv => {
+    const btn = document.createElement("button");
+    btn.className = "level-tab";
+    btn.dataset.level = lv;
+    btn.innerHTML = `${lv} <span class="level-badge" id="badge-${lv}">✓</span>`;
+    btn.onclick = () => selectLevel(lv);
+    container.appendChild(btn);
+  });
+  updateBadges();
+}
+
+function updateBadges() {
+  Object.keys(data).forEach(lv => {
+    const words = data[lv]||[];
+    const knownCount = words.filter(w => (progress[wordKey(lv, w.word)]||{}).status === "known").length;
+    const tab = document.querySelector(`[data-level="${lv}"]`);
+    if (!tab) return;
+    if (knownCount > 0) {
+      tab.classList.add("has-progress");
+      const badge = document.getElementById(`badge-${lv}`);
+      if (badge) badge.textContent = knownCount >= words.length ? "✓" : knownCount;
+    }
+  });
+}
+
+function selectLevel(lv) {
+  currentLevel = lv;
+  document.querySelectorAll(".level-tab").forEach(t => t.classList.toggle("active", t.dataset.level === lv));
+  updateStats();
+  buildQueue();
+  renderCurrentView();
+}
+
+function updateStats() {
+  const words = data[currentLevel]||[];
+  let known=0, learning=0, newW=0;
+  words.forEach(w => {
+    const s = (progress[wordKey(currentLevel, w.word)]||{}).status;
+    if (s==="known") known++;
+    else if (s==="learning") learning++;
+    else newW++;
+  });
+  document.getElementById("stat-total").textContent = words.length;
+  document.getElementById("stat-known").textContent = known;
+  document.getElementById("stat-learning").textContent = learning;
+  document.getElementById("stat-new").textContent = newW;
+  const pct = words.length ? Math.round(known/words.length*100) : 0;
+  document.getElementById("progress-fill").style.width = pct + "%";
+  document.getElementById("progress-pct").textContent = pct + "%";
+  document.getElementById("progress-text").textContent = `${known}/${words.length} từ đã thuộc`;
+  document.getElementById("word-count-label").textContent = `${words.length} từ`;
+}
+
+// ─── QUEUE BUILDING ───
+function buildQueue() {
+  const words = data[currentLevel]||[];
+  const order = document.getElementById("order-select").value;
+  const show = document.getElementById("show-select").value;
+
+  let filtered = words.filter(w => {
+    const s = (progress[wordKey(currentLevel, w.word)]||{}).status || "new";
+    if (show==="all") return true;
+    return s === show;
+  });
+
+  if (order === "spaced") {
+    const now = Date.now();
+    // Sort by due date: overdue first, then by status
+    filtered = filtered.sort((a, b) => {
+      const pa = progress[wordKey(currentLevel, a.word)]||{};
+      const pb = progress[wordKey(currentLevel, b.word)]||{};
+      const dueA = (pa.sr||{}).nextReview || 0;
+      const dueB = (pb.sr||{}).nextReview || 0;
+      return dueA - dueB;
+    });
+  } else if (order === "random") {
+    filtered = filtered.sort(() => Math.random()-0.5);
+  }
+
+  currentQueue = filtered;
+  currentIdx = 0;
+  sessionStats = { correct:0, hard:0, again:0 };
+  isFlipped = false;
+}
+
+function renderCurrentView() {
+  const mode = document.getElementById("mode-select").value;
+  currentMode = mode;
+  if (mode === "flashcard") {
+    document.getElementById("flashcard-view").classList.remove("hidden");
+    document.getElementById("browse-view").classList.add("hidden");
+    renderCard();
+  } else {
+    document.getElementById("flashcard-view").classList.add("hidden");
+    document.getElementById("browse-view").classList.remove("hidden");
+    renderBrowse();
+  }
+}
+
+// ─── FLASHCARD RENDERING ───
+function renderCard() {
+  document.getElementById("session-complete").classList.add("hidden");
+  document.getElementById("card-area").classList.remove("hidden");
+  document.getElementById("nav-row").classList.remove("hidden");
+  document.getElementById("tips-bar").classList.remove("hidden");
+
+  if (currentQueue.length === 0) {
+    showEmpty(); return;
+  }
+  if (currentIdx >= currentQueue.length) {
+    showSessionComplete(); return;
+  }
+
+  const w = currentQueue[currentIdx];
+  isFlipped = false;
+  document.getElementById("card-inner").classList.remove("flipped");
+  document.getElementById("rating-area").classList.add("hidden");
+
+  const lv = currentLevel;
+  document.getElementById("front-hsk-label").textContent = lv;
+  document.getElementById("front-num").textContent = `${currentIdx+1}/${currentQueue.length}`;
+  document.getElementById("back-num").textContent = `${currentIdx+1}/${currentQueue.length}`;
+  document.getElementById("card-counter").textContent = `${currentIdx+1} / ${currentQueue.length}`;
+  document.getElementById("front-hanzi").textContent = w.word;
+  document.getElementById("front-pinyin").textContent = w.pinyin;
+  document.getElementById("back-meaning").textContent = w.meaning;
+
+  // Example — highlight the word in hanzi
+  const exH = w.exHanzi;
+  const highlighted = exH.split(w.word).join(`<span>${w.word}</span>`);
+  document.getElementById("ex-hanzi").innerHTML = highlighted;
+  document.getElementById("ex-pinyin").textContent = w.exPinyin;
+  document.getElementById("ex-meaning").textContent = w.exMeaning;
+
+  const exBlock = document.getElementById("back-example");
+  exBlock.style.display = (w.exHanzi || w.exMeaning) ? "block" : "none";
+}
+
+function showEmpty() {
+  document.getElementById("card-area").classList.add("hidden");
+  document.getElementById("rating-area").classList.add("hidden");
+  document.getElementById("nav-row").classList.add("hidden");
+  document.getElementById("tips-bar").classList.add("hidden");
+  document.getElementById("session-complete").classList.remove("hidden");
+  document.getElementById("session-complete").innerHTML = `
+    <div class="complete-icon">📭</div>
+    <div class="complete-title">Không có từ nào!</div>
+    <div class="complete-sub">Hãy chọn bộ lọc khác hoặc chuyển sang "Tất cả từ".</div>
+    <button class="btn btn-red" onclick="document.getElementById('show-select').value='all'; buildQueue(); renderCard();">Hiện tất cả</button>
+  `;
+}
+
+function showSessionComplete() {
+  document.getElementById("card-area").classList.add("hidden");
+  document.getElementById("rating-area").classList.add("hidden");
+  document.getElementById("nav-row").classList.add("hidden");
+  document.getElementById("tips-bar").classList.add("hidden");
+  document.getElementById("session-complete").classList.remove("hidden");
+  document.getElementById("cs-correct").textContent = sessionStats.correct;
+  document.getElementById("cs-hard").textContent = sessionStats.hard;
+  document.getElementById("cs-again").textContent = sessionStats.again;
+  // Restore non-templated HTML
+  document.getElementById("session-complete").innerHTML = `
+    <div class="complete-icon">🎉</div>
+    <div class="complete-title">Hoàn thành phiên học!</div>
+    <div class="complete-sub">Bạn đã ôn xong ${currentQueue.length} từ trong phiên này.</div>
+    <div class="complete-stats">
+      <div class="cs"><div class="cs-num" style="color:#27ae60">${sessionStats.correct}</div><div class="cs-label">Đúng/Dễ</div></div>
+      <div class="cs"><div class="cs-num" style="color:#e67e22">${sessionStats.hard}</div><div class="cs-label">Khó</div></div>
+      <div class="cs"><div class="cs-num" style="color:#e74c3c">${sessionStats.again}</div><div class="cs-label">Cần ôn lại</div></div>
+    </div>
+    <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+      <button class="btn btn-red" onclick="buildQueue(); renderCard();">🔄 Học lại</button>
+      ${sessionStats.again > 0 ? `<button class="btn" onclick="reviewHard()">😅 Ôn từ chưa nhớ (${sessionStats.again})</button>` : ""}
+    </div>
+  `;
+}
+
+function reviewHard() {
+  // Re-queue only words marked "again" this session
+  buildQueue(); // fresh from spaced queue with "again" first
+  renderCard();
+}
+
+// ─── FLIP ───
+document.getElementById("card-inner").addEventListener("click", () => {
+  if (!currentQueue[currentIdx]) return;
+  isFlipped = !isFlipped;
+  document.getElementById("card-inner").classList.toggle("flipped", isFlipped);
+  document.getElementById("rating-area").classList.toggle("hidden", !isFlipped);
+});
+
+// ─── RATING ───
+document.querySelectorAll(".rating-btn").forEach(btn => {
+  btn.addEventListener("click", e => {
+    const rating = btn.dataset.rating;
+    const w = currentQueue[currentIdx];
+    if (!w) return;
+    const key = wordKey(currentLevel, w.word);
+    const p = progress[key] || {};
+    let quality = { again:0, hard:1, good:2, easy:3 }[rating];
+    p.sr = sm2({ sr: p.sr }, quality);
+    // Update status
+    if (rating === "again") { p.status = "learning"; sessionStats.again++; }
+    else if (rating === "hard") { p.status = "learning"; sessionStats.hard++; }
+    else if (rating === "good") { p.status = p.sr.repetitions >= 2 ? "known" : "learning"; sessionStats.correct++; }
+    else { p.status = "known"; sessionStats.correct++; }
+    progress[key] = p;
+    saveProgress();
+    updateStats();
+    updateBadges();
+    currentIdx++;
+    renderCard();
+  });
+});
+
+// ─── NAV ───
+document.getElementById("btn-prev").addEventListener("click", () => {
+  if (currentIdx > 0) { currentIdx--; isFlipped=false; renderCard(); }
+});
+document.getElementById("btn-next").addEventListener("click", () => {
+  if (currentIdx < currentQueue.length-1) { currentIdx++; isFlipped=false; renderCard(); }
+});
+
+// ─── SELECTS ───
+document.getElementById("mode-select").addEventListener("change", () => renderCurrentView());
+document.getElementById("order-select").addEventListener("change", () => { buildQueue(); renderCurrentView(); });
+document.getElementById("show-select").addEventListener("change", () => { buildQueue(); renderCurrentView(); });
+
+// ─── BROWSE ───
+function renderBrowse() {
+  const list = document.getElementById("word-list");
+  const search = document.getElementById("search-input").value.toLowerCase();
+  const words = (data[currentLevel]||[]).filter(w => {
+    if (!search) return true;
+    return w.word.includes(search) || w.pinyin.toLowerCase().includes(search) || w.meaning.toLowerCase().includes(search);
+  });
+  list.innerHTML = words.map(w => {
+    const s = (progress[wordKey(currentLevel, w.word)]||{}).status || "new";
+    const dotClass = s === "known" ? "known" : s === "learning" ? "learning" : "new";
+    const label = s === "known" ? "Đã thuộc" : s === "learning" ? "Đang học" : "Mới";
+    return `<div class="word-row">
+      <div class="wr-hanzi">${w.word}</div>
+      <div><div class="wr-pinyin">${w.pinyin}</div></div>
+      <div class="wr-mean">${w.meaning}</div>
+      <div class="wr-status"><span class="status-dot ${dotClass}"></span><span style="font-size:11px;color:var(--ink-faint)">${label}</span></div>
+    </div>`;
+  }).join("");
+}
+
+document.getElementById("search-input").addEventListener("input", () => renderBrowse());
+document.getElementById("btn-clear-search").addEventListener("click", () => {
+  document.getElementById("search-input").value = "";
+  renderBrowse();
+});
+
+// ─── RESET ───
+document.getElementById("btn-reset-progress").addEventListener("click", () => {
+  if (confirm("Reset toàn bộ tiến độ? Hành động này không thể hoàn tác.")) {
+    progress = {};
+    saveProgress();
+    updateStats();
+    updateBadges();
+    buildQueue();
+    renderCurrentView();
+  }
+});
+
+// ─── KEYBOARD SHORTCUTS ───
+document.addEventListener("keydown", e => {
+  if (currentMode !== "flashcard") return;
+  if (e.key === " " || e.key === "Enter") {
+    e.preventDefault();
+    document.getElementById("card-inner").click();
+  } else if (isFlipped) {
+    if (e.key === "1") document.querySelector("[data-rating=again]")?.click();
+    else if (e.key === "2") document.querySelector("[data-rating=hard]")?.click();
+    else if (e.key === "3") document.querySelector("[data-rating=good]")?.click();
+    else if (e.key === "4") document.querySelector("[data-rating=easy]")?.click();
+  } else {
+    if (e.key === "ArrowLeft") document.getElementById("btn-prev").click();
+    if (e.key === "ArrowRight") document.getElementById("btn-next").click();
+  }
+});
+
+// ─── INIT ───
+loadProgress();
+</script>
+</body>
+</html>
